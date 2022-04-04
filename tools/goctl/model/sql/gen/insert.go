@@ -23,11 +23,14 @@ func genInsert(table Table, withCache, postgreSql bool) (string, string, error) 
 
 	expressions := make([]string, 0)
 	expressionValues := make([]string, 0)
+	expressionsAll := make([]string, 0)
+	expressionAllValues := make([]string, 0)
 	var count int
+	flag := true
 	for _, field := range table.Fields {
 		camel := field.Name.ToCamel()
 		if camel == "CreateTime" || camel == "UpdateTime" {
-			continue
+			flag = false
 		}
 
 		if field.Name.Source() == table.PrimaryKey.Name.Source() {
@@ -38,11 +41,20 @@ func genInsert(table Table, withCache, postgreSql bool) (string, string, error) 
 
 		count += 1
 		if postgreSql {
-			expressions = append(expressions, fmt.Sprintf("$%d", count))
+			if flag {
+				expressions = append(expressions, fmt.Sprintf("$%d", count))
+			}
+			expressionsAll = append(expressionsAll, fmt.Sprintf("$%d", count))
 		} else {
-			expressions = append(expressions, "?")
+			if flag {
+				expressions = append(expressions, "?")
+			}
+			expressionsAll = append(expressionsAll, "?")
 		}
-		expressionValues = append(expressionValues, "data."+camel)
+		if flag {
+			expressionValues = append(expressionValues, "data."+camel)
+		}
+		expressionAllValues = append(expressionAllValues, "data."+camel)
 	}
 
 	camel := table.Name.ToCamel()
@@ -59,6 +71,8 @@ func genInsert(table Table, withCache, postgreSql bool) (string, string, error) 
 			"lowerStartCamelObject": stringx.From(camel).Untitle(),
 			"expression":            strings.Join(expressions, ", "),
 			"expressionValues":      strings.Join(expressionValues, ", "),
+			"expressionsAll":        strings.Join(expressionsAll, ","),
+			"expressionAllValues":   strings.Join(expressionAllValues, ","),
 			"keys":                  strings.Join(keySet.KeysStr(), "\n"),
 			"keyValues":             strings.Join(keyVariableSet.KeysStr(), ", "),
 			"data":                  table,
