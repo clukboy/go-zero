@@ -28,7 +28,10 @@ func genInsert(table Table, withCache, postgreSql bool) (string, string, error) 
 
 	expressions := make([]string, 0)
 	expressionValues := make([]string, 0)
+	expressionsAll := make([]string, 0)
+	expressionAllValues := make([]string, 0)
 	var count int
+	flag := true
 	for _, field := range table.Fields {
 		camel := util.SafeString(field.Name.ToCamel())
 		if table.isIgnoreColumns(field.Name.Source()) {
@@ -43,11 +46,20 @@ func genInsert(table Table, withCache, postgreSql bool) (string, string, error) 
 
 		count += 1
 		if postgreSql {
-			expressions = append(expressions, fmt.Sprintf("$%d", count))
+			if flag {
+				expressions = append(expressions, fmt.Sprintf("$%d", count))
+			}
+			expressionsAll = append(expressionsAll, fmt.Sprintf("$%d", count))
 		} else {
-			expressions = append(expressions, "?")
+			if flag {
+				expressions = append(expressions, "?")
+			}
+			expressionsAll = append(expressionsAll, "?")
 		}
-		expressionValues = append(expressionValues, "data."+camel)
+		if flag {
+			expressionValues = append(expressionValues, "data."+camel)
+		}
+		expressionAllValues = append(expressionAllValues, "data."+camel)
 	}
 
 	camel := table.Name.ToCamel()
@@ -66,12 +78,6 @@ func genInsert(table Table, withCache, postgreSql bool) (string, string, error) 
 			"expressionValues":      strings.Join(expressionValues, ", "),
 			"keys":                  strings.Join(keys, "\n"),
 			"keyValues":             strings.Join(keyVars, ", "),
-			"data":                  table,
-		})
-	if err != nil {
-		return "", "", err
-	}
-
 	// interface method
 	text, err = pathx.LoadTemplate(category, insertTemplateMethodFile, template.InsertMethod)
 	if err != nil {
